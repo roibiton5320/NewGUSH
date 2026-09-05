@@ -1,0 +1,8 @@
+build/
+cmake-build-*/
+.cache/
+.DS_Store
+*.vst3
+*.component
+*.user
+Tools/smoke
