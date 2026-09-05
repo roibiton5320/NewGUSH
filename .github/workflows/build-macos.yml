@@ -57,6 +57,7 @@ jobs:
           cp -R build/GUSH_artefacts/Release/Standalone/GUSH.app       staging/
           cp packaging/install.command                                 staging/
           cp packaging/READ-ME-FIRST.txt                               staging/
+          cp -R dist/demos                                             staging/demos
           chmod +x staging/install.command
           # ditto, not zip: it is the only thing that reliably preserves the
           # symlinks and permission bits inside a macOS bundle.
