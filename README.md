@@ -135,25 +135,26 @@ finer than any knob needs and 32× cheaper than per-sample.
 
 ## Building
 
-Nothing to install but CMake and a compiler; JUCE is fetched automatically.
-
 ```sh
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
+./build.sh
 ```
 
-Artefacts land in `build/GUSH_artefacts/Release/`, and `COPY_PLUGIN_AFTER_BUILD`
-installs them to the usual plugin folder on macOS and Windows.
+That downloads JUCE, builds VST3 + AU + standalone, runs the DSP test, and on
+macOS installs the plugin where Ableton will find it. First run takes 5–15
+minutes because JUCE compiles once; after that, seconds.
 
-Run the DSP test on its own:
+`./build.sh --fast` skips the universal binary, `--demos` also renders demo
+WAVs, `--clean` starts over.
+
+**[BUILD.md](BUILD.md)** has the prerequisites for each platform, how to get it
+into Ableton, and what to do when it does not show up — including the Rosetta
+trap, which is the one that wastes an afternoon.
+
+Rebuild and re-test the engine alone in about a second:
 
 ```sh
-./build/gush_dsp_test
+cmake --build build --target gush_dsp_test && ./build/gush_dsp_test
 ```
-
-*Linux note:* JUCE needs the usual X11/freetype/ALSA dev packages
-(`libxrandr-dev libxinerama-dev libxcursor-dev libxcomposite-dev
-libasound2-dev`).
 
 ---
 
@@ -187,8 +188,7 @@ transients, real sustain, real overlap — and every preset is rendered from the
 same performance so they can be compared:
 
 ```sh
-cmake --build build --target gush_render     # if wired up, or compile directly
-./gush_render demos/
+./build.sh --demos      # renders them into demos/
 ```
 
 ---

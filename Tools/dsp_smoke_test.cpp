@@ -462,9 +462,9 @@ int main()
             const double b = rmsOf (out, (size_t) (sr * 10.0), (size_t) sr);
             decayDb[pattern] = 20.0 * std::log10 ((b + 1e-12) / (a + 1e-12));
 
+            static const char* const names[] = { "single", "dual", "triplet", "quad" };
             std::printf ("       %-8s decays %6.1f dB between 2 s and 10 s\n",
-                         (const char*[]) { "single", "dual", "triplet", "quad" }[pattern],
-                         decayDb[pattern]);
+                         names[pattern], decayDb[pattern]);
         }
 
         double lo = decayDb[0], hi = decayDb[0];

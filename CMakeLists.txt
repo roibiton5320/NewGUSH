@@ -14,15 +14,24 @@
 
 cmake_minimum_required(VERSION 3.22)
 
+# These have to be set BEFORE project(), or the compiler checks run for the
+# wrong architecture and the setting is silently ignored.
+option(GUSH_UNIVERSAL "macOS: build arm64 + x86_64 in one binary" ON)
+
+if(APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum macOS version")
+
+    if(GUSH_UNIVERSAL)
+        # Ableton running under Rosetta will refuse an arm64-only plugin, and
+        # there is no error message that says so. Universal by default.
+        set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Universal binary")
+    endif()
+endif()
+
 project(GUSH VERSION 0.1.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-if(APPLE)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum macOS version")
-    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Universal binary")
-endif()
 
 # -----------------------------------------------------------------------------
 #  JUCE
@@ -66,7 +75,12 @@ juce_add_plugin(GUSH
     NEEDS_MIDI_OUTPUT           FALSE
     IS_MIDI_EFFECT              FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    COPY_PLUGIN_AFTER_BUILD     TRUE)
+    COPY_PLUGIN_AFTER_BUILD     TRUE
+
+    # Without this the standalone build gets silence on macOS: the OS denies
+    # audio input to an app that never declared it wants any.
+    MICROPHONE_PERMISSION_ENABLED TRUE
+    MICROPHONE_PERMISSION_TEXT    "GUSH processes live audio, so it needs your input device.")
 
 target_sources(GUSH PRIVATE
     Source/PluginProcessor.cpp
