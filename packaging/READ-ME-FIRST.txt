@@ -1,0 +1,33 @@
+GUSH — granular tape echo / resonator / shimmer
+================================================
+
+  1. Right-click install.command  ->  Open  ->  Open.
+     (Just double-clicking it will be blocked. This is unsigned software,
+     which macOS treats with suspicion, correctly.)
+
+  2. Open Ableton. Preferences -> Plug-Ins -> turn on VST3, and Audio Units
+     if you prefer AU. Press Rescan.
+
+  3. Drag GUSH onto an AUDIO track.
+
+     GUSH is an EFFECT, not an instrument. Nothing happens on an empty MIDI
+     track. Give it a guitar, the Digitakt, or an audio clip.
+
+Want to hear it before installing anything? The demos folder has audio
+rendered straight through this build. Play them in order.
+
+No DAW at all? GUSH.app gets installed to your Applications folder. Open it,
+pick your audio interface in its settings, and play.
+
+Where to start on the knobs
+---------------------------
+  MIX             how much of any of this you hear
+  ECHO MIX        the tape delay
+  GRAIN BLEND     turn it up and the echoes break into grains
+  RESONATE        the echoes strike a tuned object instead of a speaker
+  REVERB, DECAY   the room
+  SHIMMER         an octave up, climbing inside the reverb tail
+  FREEZE          holds the loop forever while you keep playing over it
+
+The interface is a plain list of controls for now. Everything works and
+everything automates; it just has not been dressed yet.

@@ -18,6 +18,10 @@ cmake_minimum_required(VERSION 3.22)
 # wrong architecture and the setting is silently ignored.
 option(GUSH_UNIVERSAL "macOS: build arm64 + x86_64 in one binary" ON)
 
+# CI builds a package rather than installing into the runner's own plugin
+# folders, so this has to be switchable.
+option(GUSH_INSTALL_AFTER_BUILD "Copy the plugin into the system plugin folders after building" ON)
+
 if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum macOS version")
 
@@ -75,7 +79,7 @@ juce_add_plugin(GUSH
     NEEDS_MIDI_OUTPUT           FALSE
     IS_MIDI_EFFECT              FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
-    COPY_PLUGIN_AFTER_BUILD     TRUE
+    COPY_PLUGIN_AFTER_BUILD     ${GUSH_INSTALL_AFTER_BUILD}
 
     # Without this the standalone build gets silence on macOS: the OS denies
     # audio input to an app that never declared it wants any.

@@ -1,0 +1,91 @@
+# Builds GUSH on a real Mac, at GitHub's expense, and publishes the result as a
+# download. The point is that nobody needs Xcode, CMake or a terminal to get
+# the plugin — they click one link.
+
+name: Build for macOS
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-14          # Apple Silicon; the universal build adds Intel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DGUSH_INSTALL_AFTER_BUILD=OFF
+
+      - name: Build
+        run: cmake --build build --parallel 3
+
+      - name: Run the DSP test
+        run: ./build/gush_dsp_test
+
+      - name: Render demo audio
+        run: |
+          mkdir -p dist/demos
+          ./build/gush_render dist/demos
+
+      - name: Check what came out
+        run: |
+          set -e
+          for f in build/GUSH_artefacts/Release/VST3/GUSH.vst3 \
+                   build/GUSH_artefacts/Release/AU/GUSH.component \
+                   build/GUSH_artefacts/Release/Standalone/GUSH.app; do
+            test -d "$f" || { echo "missing: $f"; exit 1; }
+          done
+          # Universal or nothing: an arm64-only plugin will not load in a
+          # Live running under Rosetta, and Live does not say why.
+          lipo -info build/GUSH_artefacts/Release/VST3/GUSH.vst3/Contents/MacOS/GUSH
+
+      - name: Package
+        run: |
+          mkdir -p staging
+          cp -R build/GUSH_artefacts/Release/VST3/GUSH.vst3            staging/
+          cp -R build/GUSH_artefacts/Release/AU/GUSH.component         staging/
+          cp -R build/GUSH_artefacts/Release/Standalone/GUSH.app       staging/
+          cp packaging/install.command                                 staging/
+          cp packaging/READ-ME-FIRST.txt                               staging/
+          chmod +x staging/install.command
+          # ditto, not zip: it is the only thing that reliably preserves the
+          # symlinks and permission bits inside a macOS bundle.
+          ditto -c -k --sequesterRsrc --keepParent staging dist/GUSH-macOS.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GUSH-macOS
+          path: dist
+
+      - name: Publish as a release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-macos
+          name: GUSH — latest macOS build
+          body: |
+            Built automatically from `main` on a macOS runner.
+
+            **Download `GUSH-macOS.zip`, unzip it, and double-click
+            `install.command`** (right-click → Open the first time, because it
+            is unsigned). That installs the VST3 and the AU, clears the
+            quarantine flag macOS puts on anything downloaded, and puts the
+            standalone app in your Applications folder.
+
+            Then: Ableton → Preferences → Plug-Ins → Rescan, and drop GUSH on
+            an **audio** track. It is an effect, so it needs something going
+            into it.
+
+            The `demos/` folder in the zip has the same audio rendered through
+            this exact build.
+          prerelease: true
+          files: dist/GUSH-macOS.zip
