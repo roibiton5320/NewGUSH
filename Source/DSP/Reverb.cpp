@@ -64,7 +64,12 @@ void Reverb::prepare (double sampleRate)
     shimLP.prepare (sampleRate);
     shimLP.setCutoff (5200.0f);           // stop the shimmer turning into hiss
 
-    hpCoef = 1.0f - std::exp (-kTwoPi * 70.0f / (float) sampleRate);
+    // 20 Hz, not 70. A one-pole highpass inside the tank is only there to stop
+    // DC creeping in, but it is applied on EVERY circulation, so its gentle
+    // slope compounds: at 70 Hz it cost about 1 dB per second in the low mids
+    // and turned a 20 second DECAY into 14. At 20 Hz the same protection costs
+    // nothing audible.
+    hpCoef = 1.0f - std::exp (-kTwoPi * 20.0f / (float) sampleRate);
 
     preDelaySmooth.setTime (sampleRate, 120.0f);
     preDelaySmooth.reset (1.0f);
@@ -128,7 +133,9 @@ void Reverb::setParams (float size, float decaySeconds, float damping, float shi
     }
     else
     {
-        const float cutoff = 18000.0f * std::pow (0.06f, clampf (damping, 0.0f, 1.0f));
+        // Also compounds every circulation, so the mapping is deliberately
+        // gentler than a single filter sweep would suggest.
+        const float cutoff = 18000.0f * std::pow (0.12f, clampf (damping, 0.0f, 1.0f));
         lpCoef = 1.0f - std::exp (-kTwoPi * clampf (cutoff, 200.0f, (float) sr * 0.45f) / (float) sr);
     }
 
@@ -194,7 +201,7 @@ void Reverb::processStereo (float inL, float inR, float& outL, float& outR) noex
     for (int i = 0; i < kLines; ++i)
     {
         const float inject = (i < 4 ? dL : dR) * 0.5f * inGate;
-        line[i].push (softClip (v[i] + inject + shimOut));
+        line[i].push (softLimit (v[i] + inject + shimOut));
     }
 }
 

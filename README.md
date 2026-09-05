@@ -106,6 +106,24 @@ tanh across each sample interval, killing most of the aliasing for the price of
 one extra log — and costing zero latency, which matters when someone is playing
 a guitar through it live.
 
+**Feedback is taken from the tape, not from the output bus.** The first
+version fed regen from the mixed wet output, which is scaled by the head
+normalisation and each head's pan law — so FEEDBACK meant something different
+for every head pattern, and a knob reading 0.62 on the four-head setting was
+really a loop gain of 0.31 that died in three repeats. Regen now comes off the
+delay point at unity, the way a multi-head machine feeds its record head, with
+the grain cloud blended in by GRAIN BLEND so grains still recirculate. All four
+head patterns now decay within 0.3 dB of each other, and the measured decay
+matches the arithmetic.
+
+**A 70 Hz highpass was eating a third of the reverb.** One gentle one-pole
+highpass sat inside each FDN line as DC protection. It costs 0.04 dB per pass —
+nothing — except the line recirculates twenty-four times a second, so it cost
+1 dB per second, and a DECAY of 20 s measured 14.5 s. At 20 Hz it protects
+against exactly the same thing and costs nothing audible: 20 s now measures
+17.7 s, and short and medium decays land within 6% of the knob. There is a
+test.
+
 **Randomness is seeded.** Every random decision comes from one number that is
 saved with the preset, so the same seed renders bit-identical audio forever.
 Roll until you like it, then it is locked. The test suite checks that too.
@@ -154,10 +172,24 @@ running for a while:
 - FREEZE holds for eight seconds without sagging or climbing
 - silence in produces exact silence out
 - the same seed renders bit-identical audio, a different one does not
+- FEEDBACK decays alike on all four head patterns, and matches the arithmetic
+- DECAY is accurate to within 6% at 2 s and 8 s, and 12% at 20 s
 - cost: **~2.4% of one core** at 48 kHz with grains, resonator, shimmer and
-  modulation all running (≈42× realtime)
+  modulation all running (≈41× realtime)
 
-All 40 checks pass.
+All 42 checks pass.
+
+## Hearing it without a DAW
+
+`Tools/render_demo.cpp` renders demo WAVs through the real engine offline. The
+source material is a plucked-string model playing an arpeggio — real
+transients, real sustain, real overlap — and every preset is rendered from the
+same performance so they can be compared:
+
+```sh
+cmake --build build --target gush_render     # if wired up, or compile directly
+./gush_render demos/
+```
 
 ---
 

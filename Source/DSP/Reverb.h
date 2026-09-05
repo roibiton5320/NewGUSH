@@ -20,9 +20,12 @@
     input: infinite tail. Shimmer still works while frozen, which is one of the
     best sounds this thing makes.
 
-    Every line input is soft-clipped. With shimmer feeding energy back into a
-    tank already at 0.999 feedback, that clipper is the only thing between a
-    lush pad and a blown speaker.
+    Every line input runs through softLimit(). With shimmer feeding energy back
+    into a tank already at 0.999 feedback, that limiter is the only thing
+    between a lush pad and a blown speaker -- but it is deliberately NOT a
+    plain soft clipper, because one of those costs a fraction of a dB on every
+    circulation and a tank circulating twenty-four times a second turns that
+    into half the decay time. softLimit is exactly linear until it is needed.
 */
 
 #pragma once

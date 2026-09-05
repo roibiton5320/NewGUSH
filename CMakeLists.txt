@@ -108,4 +108,9 @@ if(GUSH_BUILD_TESTS)
 
     enable_testing()
     add_test(NAME dsp_smoke COMMAND gush_dsp_test)
+
+    # Renders demo WAVs through the real engine, no DAW required:
+    #     ./build/gush_render demos/
+    add_executable(gush_render Tools/render_demo.cpp ${GUSH_DSP_SOURCES})
+    target_compile_features(gush_render PRIVATE cxx_std_17)
 endif()

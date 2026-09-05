@@ -418,6 +418,127 @@ int main()
         check (factor > 10.0, "comfortably faster than realtime");
     }
 
+    //== 9. FEEDBACK must mean the same thing on every head pattern ============
+    std::printf ("\n9. Feedback consistency across head patterns\n");
+    {
+        const double sr = 48000.0;
+        double decayDb[4] = { 0.0, 0.0, 0.0, 0.0 };
+
+        for (int pattern = 0; pattern < 4; ++pattern)
+        {
+            Engine e;
+            e.prepare (sr, 512);
+            e.reset();
+
+            EngineParams p;
+            p.mix = 1.0f; p.echoMix = 1.0f; p.resMix = 0.0f; p.revMix = 0.0f;
+            p.grainMix = 0.0f; p.drive = 0.0f;
+            p.delaySeconds = 0.25f; p.feedback = 0.85f; p.tapeTone = 1.0f;
+            p.headPattern = pattern;
+
+            const int total = (int) (sr * 12.0);
+            const int burst = (int) (sr * 0.30);
+            std::vector<float> out ((size_t) total);
+
+            Rng rng (23u);
+            std::vector<float> bl (128), br (128);
+
+            for (int pos = 0; pos < total; pos += 128)
+            {
+                const int n = std::min (128, total - pos);
+                for (int i = 0; i < n; ++i)
+                {
+                    const float x = (pos + i < burst) ? 0.4f * rng.nextBipolar() : 0.0f;
+                    bl[(size_t) i] = x;
+                    br[(size_t) i] = x;
+                }
+
+                e.setParameters (p);
+                e.process (bl.data(), br.data(), n);
+                for (int i = 0; i < n; ++i) out[(size_t) (pos + i)] = bl[(size_t) i];
+            }
+
+            const double a = rmsOf (out, (size_t) (sr * 2.0),  (size_t) sr);
+            const double b = rmsOf (out, (size_t) (sr * 10.0), (size_t) sr);
+            decayDb[pattern] = 20.0 * std::log10 ((b + 1e-12) / (a + 1e-12));
+
+            std::printf ("       %-8s decays %6.1f dB between 2 s and 10 s\n",
+                         (const char*[]) { "single", "dual", "triplet", "quad" }[pattern],
+                         decayDb[pattern]);
+        }
+
+        double lo = decayDb[0], hi = decayDb[0];
+        for (double d : decayDb) { lo = std::min (lo, d); hi = std::max (hi, d); }
+
+        // A 0.25 s delay repeats 32 times in the 8 s measured, so the honest
+        // answer is 32 * 20*log10(0.85) = -45 dB, plus a little filter loss.
+        // The knob has to be quantitatively true, not just consistent.
+        const double theoretical = 32.0 * 20.0 * std::log10 (0.85);
+        std::printf ("       theory says %6.1f dB\n", theoretical);
+
+        check (hi - lo < 6.0, "the same FEEDBACK decays alike on every pattern");
+        check (std::fabs (decayDb[3] - theoretical) < 8.0,
+               "the measured decay matches the feedback knob");
+    }
+
+    //== 10. the DECAY knob has to be telling the truth ========================
+    std::printf ("\n10. Decay accuracy\n");
+    {
+        const double sr = 48000.0;
+
+        for (float want : { 2.0f, 8.0f, 20.0f })
+        {
+            Engine e;
+            e.prepare (sr, 512);
+            e.reset();
+
+            EngineParams p;
+            p.mix = 1.0f; p.echoMix = 0.0f; p.resMix = 0.0f; p.drive = 0.0f;
+            p.revMix = 1.0f; p.revDecay = want; p.revDamping = 0.0f;
+            p.revShimmer = 0.0f; p.revSize = 0.7f; p.revPredelayMs = 0.0f;
+
+            const int total = (int) (sr * (want * 1.1 + 2.0));
+            const int burst = (int) (sr * 0.25);
+            std::vector<float> out ((size_t) total);
+            std::vector<float> bl (128), br (128);
+
+            Rng rng (5u);
+            OnePoleLP band;
+            band.prepare (sr);
+            band.setCutoff (700.0f);    // measure the band the tank should hold
+
+            for (int pos = 0; pos < total; pos += 128)
+            {
+                const int n = std::min (128, total - pos);
+                for (int i = 0; i < n; ++i)
+                {
+                    const float x = (pos + i < burst) ? band.process (0.9f * rng.nextBipolar()) : 0.0f;
+                    bl[(size_t) i] = x;
+                    br[(size_t) i] = x;
+                }
+
+                e.setParameters (p);
+                e.process (bl.data(), br.data(), n);
+                for (int i = 0; i < n; ++i) out[(size_t) (pos + i)] = bl[(size_t) i];
+            }
+
+            // Two late windows, past the build-up, inside the pure exponential.
+            const double t1 = want * 0.30, t2 = want * 0.80;
+            const double w  = std::min (0.5, (double) want * 0.1);
+            const double a  = rmsOf (out, (size_t) (t1 * sr), (size_t) (w * sr));
+            const double b  = rmsOf (out, (size_t) (t2 * sr), (size_t) (w * sr));
+            const double rt60 = (t2 - t1) * 60.0 / -(20.0 * std::log10 ((b + 1e-15) / (a + 1e-15)));
+
+            std::printf ("       knob %5.1f s  ->  measured %5.1f s  (%.0f%%)\n",
+                         want, rt60, 100.0 * rt60 / (double) want);
+
+            // A gentle one-pole highpass applied on every circulation used to
+            // eat a third of this. It must not come back.
+            check (rt60 > (double) want * 0.80, "the tail lasts about as long as DECAY says");
+            check (rt60 < (double) want * 1.20, "and not longer");
+        }
+    }
+
     std::printf ("\n======================\n%s (%d failure%s)\n\n",
                  failures == 0 ? "ALL PASSED" : "FAILURES", failures,
                  failures == 1 ? "" : "s");

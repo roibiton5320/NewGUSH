@@ -63,6 +63,28 @@ inline float softClip (float x) noexcept
     return x * (27.0f + x * x) / (27.0f + 9.0f * x * x);
 }
 
+/** Transparent below `threshold`, smoothly saturating above it, hard ceiling
+    at +/-1.
+
+    A plain soft clipper inside a feedback loop is not free. At 0.3 amplitude
+    the usual tanh-shaped curve costs about 0.2 dB, and a reverb line that
+    recirculates twenty-four times a second turns that into 5 dB per second --
+    which quietly ate nearly half of whatever the DECAY knob promised. This
+    one is exactly linear until the signal genuinely needs limiting, so a
+    quiet tail decays at the rate it was asked to.
+
+    Continuous in value and slope at the threshold: tanh(0) = 0 and its
+    derivative there is 1, so the two halves meet without a kink. */
+inline float softLimit (float x, float threshold = 0.7f) noexcept
+{
+    const float a = std::fabs (x);
+    if (a <= threshold) return x;
+
+    const float headroom = 1.0f - threshold;
+    const float limited  = threshold + headroom * std::tanh ((a - threshold) / headroom);
+    return x < 0.0f ? -limited : limited;
+}
+
 /** 4-point, 3rd-order Hermite interpolation (de Soras). Samples in time order:
     ym1 precedes y0; t in [0,1) walks from y0 towards y1. */
 inline float hermite (float ym1, float y0, float y1, float y2, float t) noexcept

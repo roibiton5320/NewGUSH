@@ -306,11 +306,40 @@ void GranularTapeEcho::process (float& l, float& r) noexcept
     }
     else
     {
+        // Regen is taken at unity from the delay point, the way a multi-head
+        // machine feeds its record head -- NOT from the mixed output bus.
+        //
+        // That distinction is not cosmetic. The output bus is scaled by the
+        // head normalisation and by each head's pan law, so taking regen from
+        // it made FEEDBACK mean something different for every head pattern:
+        // on the four-head setting a knob reading 0.62 was really a loop gain
+        // of 0.31, and the echoes were gone in three repeats.
+        //
+        // The grain cloud is blended into the regen by GRAIN BLEND, so grains
+        // still recirculate -- that recirculation is most of what the Clouds
+        // side of this sounds like.
+        float regenL, regenR;
+
+        if (reverse)
+        {
+            regenL = echoL;     // the reverse reader is already unity gain
+            regenR = echoR;
+        }
+        else
+        {
+            const double regenPos = wp - (double) delaySamples;
+            regenL = tape.read (0, regenPos);
+            regenR = tape.read (1, regenPos);
+        }
+
+        regenL = lerp (regenL, grL, gm);
+        regenR = lerp (regenR, grR, gm);
+
         feedbackSmooth.setTarget (feedback);
         const float fbAmt = feedbackSmooth.next();
 
-        fbL = fbHP[0].process (fbLP[0].process (wetL * fbAmt));
-        fbR = fbHP[1].process (fbLP[1].process (wetR * fbAmt));
+        fbL = fbHP[0].process (fbLP[0].process (regenL * fbAmt));
+        fbR = fbHP[1].process (fbLP[1].process (regenR * fbAmt));
     }
 
     // Pitch inside the loop: every repeat lands an interval away from the one
@@ -336,7 +365,7 @@ void GranularTapeEcho::process (float& l, float& r) noexcept
     }
     else
     {
-        tape.write (inL + softClip (fbL), inR + softClip (fbR));
+        tape.write (inL + softLimit (fbL), inR + softLimit (fbR));
     }
 
     l = wetL;
